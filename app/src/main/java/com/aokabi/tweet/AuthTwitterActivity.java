@@ -2,6 +2,7 @@ package com.aokabi.tweet;
 
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.net.Uri;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
@@ -44,7 +45,6 @@ public class AuthTwitterActivity extends AppCompatActivity implements View.OnCli
             intent.putExtra(EXTRA_ACCESS_TOKEN_SECRET, token.getTokenSecret());
             setResult(Activity.RESULT_OK, intent);
             finish();
-
         }
     };
     @Override
@@ -71,9 +71,12 @@ public class AuthTwitterActivity extends AppCompatActivity implements View.OnCli
         switch (view.getId()) {
             case R.id.button_start_login:
             {
-                //認証画面
-                final Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(_mRequestToken.getAuthorizationURL()));
-                startActivity(intent);
+                try {
+                    //認証画面
+                    final Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(_mRequestToken.getAuthorizationURL()));
+                    startActivity(intent);
+                } catch (NullPointerException e) {
+                }
             }
             break;
             case R.id.button_login:

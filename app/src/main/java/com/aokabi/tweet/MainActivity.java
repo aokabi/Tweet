@@ -3,6 +3,7 @@ package com.aokabi.tweet;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.speech.RecognitionListener;
 import android.speech.RecognizerIntent;
@@ -13,11 +14,15 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.EditText;
 import android.widget.Toast;
 
 import java.util.List;
 
+import twitter4j.AsyncTwitter;
+import twitter4j.AsyncTwitterFactory;
 import twitter4j.Twitter;
+import twitter4j.TwitterException;
 import twitter4j.TwitterFactory;
 import twitter4j.TwitterListener;
 import twitter4j.auth.AccessToken;
@@ -29,10 +34,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     //FIELDS
     private final int REQUEST_ACCESS_TOKEN = 0;
-    private final TwitterFactory factory = new TwitterFactory();
-    private final Twitter twitter = factory.getInstance();
+    private final AsyncTwitterFactory factory = new AsyncTwitterFactory();
+    private final AsyncTwitter twitter = factory.getInstance();
     private List<String> recData;
     private final int MY_PERMISSIONS_REQUEST_RECORD_AUDIO = 1;
+    private SharedPreferences pref;
+
 
 
     @Override
@@ -61,6 +68,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         oauth_activity.setOnClickListener(this);
         final View speech_recognizer =  findViewById(R.id.button_speech_recognizer);
         speech_recognizer.setOnClickListener(this);
+        final View tweet = findViewById(R.id.button_tweet);
+        tweet.setOnClickListener(this);
 
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.RECORD_AUDIO)) {
@@ -69,6 +78,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
               ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.RECORD_AUDIO}, MY_PERMISSIONS_REQUEST_RECORD_AUDIO);
             }
         }
+        pref = this.getSharedPreferences("token", MODE_PRIVATE);
+        String token = pref.getString("access_token", "none");
+        String tokenSecret = pref.getString("access_secret", "none");
+        if (token == "none" || tokenSecret == "none"){
+            // token取得してね
+        } else {
+            twitter.setOAuthConsumer(getString(R.string.consumerKey), getString(R.string.consumerSecret));
+            twitter.setOAuthAccessToken(new AccessToken(token, tokenSecret));
+            Toast.makeText(this, "ツイートできます", LENGTH_SHORT).show();
+        }
+
     }
 
     @Override
@@ -170,7 +190,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                             getData += s + ",";
                         }
                         Log.d("debug", "音声認識成功");
-                        Toast.makeText(MainActivity.this, getData, LENGTH_SHORT).show();
+                        EditText text = (EditText) findViewById(R.id.text_tweet);
+                        text.setText(recData.get(0));
                     }
 
                     @Override
@@ -185,6 +206,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 });
                 recognizer.startListening(intent);
             }
+            break;
+            case R.id.button_tweet:
+            {
+                Tweet();
+                Log.d("debug", "tweet成功");
+            }
+            break;
         }
     }
 
@@ -193,8 +221,22 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         if(requestCode == REQUEST_ACCESS_TOKEN && resultCode == Activity.RESULT_OK) {
             final String token = data.getStringExtra(AuthTwitterActivity.EXTRA_ACCESS_TOKEN);
             final String token_secret = data.getStringExtra(AuthTwitterActivity.EXTRA_ACCESS_TOKEN_SECRET);
-            twitter.setOAuthConsumer(getString(R.string.consumerKey), getString(R.string.consumerSecret));
-            twitter.setOAuthAccessToken(new AccessToken(token, token_secret));
+            try {
+                twitter.setOAuthConsumer(getString(R.string.consumerKey), getString(R.string.consumerSecret));
+                twitter.setOAuthAccessToken(new AccessToken(token, token_secret));
+            } catch (IllegalStateException e) {
+                // すでにConsumerKeyを登録してると発生
+            }
+            SharedPreferences.Editor editor = pref.edit();
+            editor.putString("access_token", token);
+            editor.putString("access_secret", token_secret);
+            editor.commit();
         }
+    }
+
+    private void Tweet() {
+        EditText text = (EditText) findViewById(R.id.text_tweet);
+        twitter.updateStatus(text.getText().toString());
+        Toast.makeText(this, "ツイートしました", LENGTH_SHORT);
     }
 }

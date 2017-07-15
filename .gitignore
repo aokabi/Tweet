@@ -9,3 +9,5 @@
 .externalNativeBuild
 
 /app/src/main/res/values/consumerkey.xml
+app/libs/
+app/src/main/res/drawable/
